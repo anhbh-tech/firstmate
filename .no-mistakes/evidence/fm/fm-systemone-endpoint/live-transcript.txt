@@ -1,0 +1,103 @@
+
+=== S1 env: TYPESAFE_BASE_URL=https://localhost:18443 TYPESAFE_MODEL=env-model-1
+--- exit 0
+--- stdout:
+dispatch-resolve:
+  status: clear
+  model: server-named-env-model-1   latency_ms: 0   tokens: 400/9
+  rule: rule_1 (A simple bug fix with a stated root cause.)   confidence: 0.93
+  probabilities: rule_1=0.93 default=0.07
+  note: rule matched
+  candidate: claude:sonnet  provider=claude  scope=all_models  remaining=83%  spendPriority=0.3048  runway=through_reset  -> eligible
+  profile: --harness 'claude' --model 'sonnet' --effort 'high'
+--- stderr:
+--- server received:
+{"path": "/v1/systemone", "host": "localhost:18443", "auth_scheme": "Bearer", "auth_key_matches_LIVE_KEY": true, "model": "env-model-1", "question_type": "choice", "criteria": ["default", "rule_1"], "project": "pager"}
+
+=== S2 .env: export TYPESAFE_BASE_URL="https://127.0.0.1:18443/" (trailing slash) and TYPESAFE_MODEL='file-model-2'
+--- exit 0
+--- stdout:
+dispatch-resolve:
+  status: clear
+  model: server-named-file-model-2   latency_ms: 0   tokens: 400/9
+  rule: rule_1 (A simple bug fix with a stated root cause.)   confidence: 0.93
+  probabilities: rule_1=0.93 default=0.07
+  note: rule matched
+  candidate: claude:sonnet  provider=claude  scope=all_models  remaining=83%  spendPriority=0.3049  runway=through_reset  -> eligible
+  profile: --harness 'claude' --model 'sonnet' --effort 'high'
+--- stderr:
+--- server received:
+{"path": "/v1/systemone", "host": "127.0.0.1:18443", "auth_scheme": "Bearer", "auth_key_matches_LIVE_KEY": true, "model": "file-model-2", "question_type": "choice", "criteria": ["default", "rule_1"], "project": "pager"}
+
+=== S3 precedence: same .env, environment TYPESAFE_BASE_URL=https://localhost:18443 TYPESAFE_MODEL=env-wins
+--- exit 0
+--- stdout:
+dispatch-resolve:
+  status: clear
+  model: server-named-env-wins   latency_ms: 0   tokens: 400/9
+  rule: rule_1 (A simple bug fix with a stated root cause.)   confidence: 0.93
+  probabilities: rule_1=0.93 default=0.07
+  note: rule matched
+  candidate: claude:sonnet  provider=claude  scope=all_models  remaining=83%  spendPriority=0.3049  runway=through_reset  -> eligible
+  profile: --harness 'claude' --model 'sonnet' --effort 'high'
+--- stderr:
+--- server received:
+{"path": "/v1/systemone", "host": "localhost:18443", "auth_scheme": "Bearer", "auth_key_matches_LIVE_KEY": true, "model": "env-wins", "question_type": "choice", "criteria": ["default", "rule_1"], "project": "pager"}
+
+=== S4 default model: base URL to stub whose response names no model, no TYPESAFE_MODEL anywhere
+--- exit 0
+--- stdout:
+dispatch-resolve:
+  status: clear
+  model: -   latency_ms: 0   tokens: 400/9
+  rule: rule_1 (A simple bug fix with a stated root cause.)   confidence: 0.93
+  probabilities: rule_1=0.93 default=0.07
+  note: rule matched
+  candidate: claude:sonnet  provider=claude  scope=all_models  remaining=83%  spendPriority=0.3049  runway=through_reset  -> eligible
+  profile: --harness 'claude' --model 'sonnet' --effort 'high'
+--- stderr:
+--- server received:
+{"path": "/v1/systemone", "host": "localhost:18444", "auth_scheme": "Bearer", "auth_key_matches_LIVE_KEY": true, "model": "jev-latest", "question_type": "choice", "criteria": ["default", "rule_1"], "project": "pager"}
+
+=== S5 default endpoint: nothing configured; HTTPS_PROXY logger records the CONNECT target and refuses (nothing leaves the machine)
+--- exit 0
+--- stdout:
+dispatch-resolve:
+  status: error
+  reason: http 000 after 0 ms: 
+--- stderr:
+dispatch-resolve: error (http 000 after 0 ms: )
+--- server received:
+--- proxy CONNECT log:
+CONNECT api.typesafe.ai:443 HTTP/1.1
+
+=== S6 invalid base URL [http://localhost:18443]
+--- exit 2
+--- stdout:
+--- stderr:
+error: TYPESAFE_BASE_URL must start with https:// and carry no credentials (set in the environment or /tmp/fm-ts-home.155lzT/.env; unset it for the default)
+--- server received:
+--- secret not in stderr
+
+=== S6 invalid base URL [https://user:url-secret-7d41@localhost:18443]
+--- exit 2
+--- stdout:
+--- stderr:
+error: TYPESAFE_BASE_URL must start with https:// and carry no credentials (set in the environment or /tmp/fm-ts-home.155lzT/.env; unset it for the default)
+--- server received:
+--- secret not in stderr
+
+=== S6 invalid base URL [https://url-secret-7d41@localhost:18443]
+--- exit 2
+--- stdout:
+--- stderr:
+error: TYPESAFE_BASE_URL must start with https:// and carry no credentials (set in the environment or /tmp/fm-ts-home.155lzT/.env; unset it for the default)
+--- server received:
+--- secret not in stderr
+
+=== S7 invalid .env base URL, no key: off path unchanged
+--- exit 0
+--- stdout:
+--- stderr:
+dispatch-resolve: off (TYPESAFE_API_KEY absent from the environment and /tmp/fm-ts-home.155lzT/.env)
+--- server received:
