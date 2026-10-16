@@ -12,6 +12,8 @@ set -u
 # shellcheck source=tests/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+unset TYPESAFE_API_KEY TYPESAFE_BASE_URL TYPESAFE_MODEL
+
 TOOL="$ROOT/bin/fm-dispatch-resolve.sh"
 TMP_ROOT=$(fm_test_tmproot fm-dispatch-resolve)
 HOME_DIR="$TMP_ROOT/home"
