@@ -66,13 +66,12 @@
 # Environment (each read from the process environment, else the same
 #   $FM_HOME/.env as the key; the environment wins and an empty value is unset):
 #   TYPESAFE_API_KEY     the opt-in key described above.
-#   TYPESAFE_BASE_URL    endpoint origin, default https://api.typesafe.ai. It must
-#                        be https://host[:port] with no credentials, path, query,
-#                        or fragment; the tool appends /v1/systemone itself. An
-#                        invalid value exits 2 without echoing it, never falls
-#                        back to the default.
+#   TYPESAFE_BASE_URL    endpoint base, default https://api.typesafe.ai. It must
+#                        start with https:// and carry no credentials (no @); one
+#                        trailing slash is dropped and the tool appends
+#                        /v1/systemone itself. An invalid value exits 2 without
+#                        echoing it, never falls back to the default.
 #   TYPESAFE_MODEL       model name sent in the request, default jev-latest.
-#   The output's model line is the model the response names, else TYPESAFE_MODEL.
 #
 # Authority: this tool never replaces firstmate's judgment, quota-array-dispatch,
 #   the captain-approval gate, or fm-spawn.sh validation; it publishes one
@@ -102,7 +101,6 @@ CONFIG="${FM_CONFIG_OVERRIDE:-$FM_HOME/config}"
 CONFIDENCE_FLOOR=0.6
 TS_MODEL=jev-latest
 TS_BASE=https://api.typesafe.ai
-TS_BASE_RE='^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:([0-9]{1,5}))?/?$'
 TS_TIMEOUT=5
 DEFAULT_WHEN="No listed rule applies to this task."
 
@@ -151,8 +149,8 @@ ts_setting() {  # <name> <default>
 }
 TS_MODEL=$(ts_setting TYPESAFE_MODEL "$TS_MODEL")
 TS_BASE=$(ts_setting TYPESAFE_BASE_URL "$TS_BASE")
-if ! [[ $TS_BASE =~ $TS_BASE_RE ]] || [ "$(( 10#${BASH_REMATCH[3]:-0} ))" -gt 65535 ]; then
-  die "TYPESAFE_BASE_URL must be an https origin such as https://host or https://host:port, with no credentials, path, query, or fragment (set in the environment or $FM_HOME/.env; unset it for the default)"
+if [[ $TS_BASE != https://* || $TS_BASE == *@* ]]; then
+  die "TYPESAFE_BASE_URL must start with https:// and carry no credentials (set in the environment or $FM_HOME/.env; unset it for the default)"
 fi
 TS_BASE=${TS_BASE%/}
 
@@ -378,7 +376,7 @@ quota-axi --json > "$QUOTA" 2>/dev/null || emit_error "quota-axi --json failed"
 fm_quota_json_valid < "$QUOTA" || emit_error "quota-axi --json returned an invalid snapshot"
 
 # ---- resolution: declared gates + quota evidence + argmax, all in jq ------------
-RESULT=$(jq -n --arg floor "$CONFIDENCE_FLOOR" --argjson lat "$LAT_MS" --arg none_criterion "$DEFAULT_WHEN" --argjson pmap "$PMAP" --arg req_model "$TS_MODEL" \
+RESULT=$(jq -n --arg floor "$CONFIDENCE_FLOOR" --argjson lat "$LAT_MS" --arg none_criterion "$DEFAULT_WHEN" --argjson pmap "$PMAP" \
   --slurpfile resp "$RESP_FILE" --slurpfile rules "$RULES" --slurpfile quota "$QUOTA" "$FM_QUOTA_ROW_JQ"'
   ($resp[0]) as $r | ($rules[0]) as $cfg | ($quota[0]) as $q | ($r.answers.rule) as $a |
   def profiles($v): if ($v | type) == "array" then $v elif ($v | type) == "object" then [$v] else [] end;
@@ -490,7 +488,7 @@ RESULT=$(jq -n --arg floor "$CONFIDENCE_FLOOR" --argjson lat "$LAT_MS" --arg non
    else {source: $choice, use: profiles($rule.use), note: "rule matched"} end) as $sel |
   def when_of($c): (if rule_at($c) == null then $none_criterion else rule_at($c).when end | .[0:60]);
   {
-    model: ($r.model // $req_model), latency_ms: $lat, tokens: ($r.usage // null),
+    model: $r.model, latency_ms: $lat, tokens: ($r.usage // null),
     rule: $picked,
     rule_when: when_of($picked),
     confidence: $a.confidence, probabilities: $a.probabilities
